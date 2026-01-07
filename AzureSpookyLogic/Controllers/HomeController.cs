@@ -1,11 +1,12 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
-using AzureFunctionTangyWeb.Models;
+using AzureSpookyLogic.Models;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using System.Diagnostics;
+using System.Net.Http;
 
-namespace AzureFunctionTangyWeb.Controllers
+namespace AzureSpookyLogic.Controllers
 {
     public class HomeController : Controller
     {
@@ -18,30 +19,27 @@ namespace AzureFunctionTangyWeb.Controllers
             _httpClientFactory = httpClientFactory;
             _blobServiceClient = blobServiceClient;
         }
-
         public IActionResult Index()
         {
             return View();
         }
-        // http://localhost:7172/api/OnSalesUploadWriteToQueue
-
         [HttpPost]
-        public async Task<IActionResult> Index(SalesRequest salesRequest, IFormFile file)
+        public async Task<IActionResult> Index(SpookyRequest spookyRequest, IFormFile file)
         {
-            salesRequest.Id = Guid.NewGuid().ToString();
+            spookyRequest.Id = Guid.NewGuid().ToString();
             using var client = _httpClientFactory.CreateClient();
-            client.BaseAddress = new Uri("http://localhost:7172/api/");
+            var json = JsonConvert.SerializeObject(spookyRequest);
 
-            using (var content = new StringContent(JsonConvert.SerializeObject(salesRequest), System.Text.Encoding.UTF8, "application/json"))
+            using (var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"))
             {
-                HttpResponseMessage httpResponseMessage = await client.PostAsync("OnSalesUploadWriteToQueue", content);
+                HttpResponseMessage httpResponseMessage = await client.PostAsync("https://prod-20.eastus.logic.azure.com:443/workflows/33a7e84b3b5444df8923de1266f9f104/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=32-3bw9LqZmXv1dgJKs4Ut5_rRvYx9QmzWHV_bEpaJM", content);
                 string returnValue = await httpResponseMessage.Content.ReadAsStringAsync();
             }
 
-            if(file != null)
+            if (file != null)
             {
-                var fileName = salesRequest.Id + Path.GetExtension(file.FileName);
-                BlobContainerClient containerClient = _blobServiceClient.GetBlobContainerClient("functionsalesrep");
+                var fileName = spookyRequest.Id + Path.GetExtension(file.FileName);
+                BlobContainerClient containerClient = _blobServiceClient.GetBlobContainerClient("logic-app-holder");
                 var blobClient = containerClient.GetBlobClient(fileName);
 
                 var httpHeader = new BlobHttpHeaders()
@@ -53,7 +51,7 @@ namespace AzureFunctionTangyWeb.Controllers
             }
 
             return RedirectToAction(nameof(Index));
-        } 
+        }
 
         public IActionResult Privacy()
         {

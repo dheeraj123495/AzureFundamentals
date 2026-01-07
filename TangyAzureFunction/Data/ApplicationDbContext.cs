@@ -15,6 +15,7 @@ namespace TangyAzureFunction.Data
         }
 
         public DbSet<SalesRequest> SalesRequests { get; set; } = null!;
+        public DbSet<GroceryItem> GroceryItems { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
